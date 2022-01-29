@@ -2,44 +2,62 @@ package main
 
 import (
 	"fmt"
-	"log"
-
-	tea "github.com/charmbracelet/bubbletea"
+	"os"
+	"path/filepath"
 )
 
 func main() {
 	fmt.Println("Hello world")
 
-	// f, err := os.Open("v2.m3u")
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// p, listType, err := m3u8.DecodeFrom(bufio.NewReader(f), true)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// switch listType {
-	// case m3u8.MEDIA:
-	// 	mediapl := p.(*m3u8.MediaPlaylist)
-	// 	for _, s := range mediapl.Segments {
-	// 		if s != nil {
-	// 			fmt.Println(s.URI)
-	// 		}
-	// 	}
-	// 	fmt.Println(mediapl.Key)
+	// p := tea.NewProgram(initialModel())
+
+	// if err := p.Start(); err != nil {
+	// 	log.Fatal(err)
 	// }
 
-	// validate := func(input string) error {
-	// 	_, err := strconv.ParseFloat(input, 64)
-	// 	if err != nil {
-	// 		return errors.New("Invalid number")
-	// 	}
-	// 	return nil
-	// }
+	var (
+		dir  = "./test"
+		name = "test"
+	)
 
-	p := tea.NewProgram(initialModel())
+	b, err := download("http://d2zihajmogu5jn.cloudfront.net/bipbop-advanced/gear3/prog_index.m3u8")
+	if err != nil {
+		fmt.Printf("Error while downloading video: %v", err)
+		os.Exit(1)
+	}
 
-	if err := p.Start(); err != nil {
-		log.Fatal(err)
+	media, err := decode(b)
+	if err != nil {
+		fmt.Printf("Error while decoding video: %v", err)
+		os.Exit(1)
+	}
+
+	for _, s := range media.Segments {
+		// id := s.SeqId
+		// fmt.Printf(filepath.Join(dir, fmt.Sprint(s.SeqId)))
+		// return
+		err := os.MkdirAll(dir, os.Mode)
+		if err != nil {
+			fmt.Printf("Error while creating directory to store media segments", err)
+			// continue
+			return
+		}
+
+		f, err := os.Create(filepath.Join(dir, fmt.Sprint(s.SeqId)))
+		if err != nil {
+			fmt.Printf("Error while creating file for segment %d of %s: %v", s.SeqId, name, err)
+			// continue
+			return
+		}
+
+		b, err := download(s.URI)
+		if err != nil {
+			fmt.Printf("Error while downloading segment %d of %s", s.SeqId, name)
+		}
+
+		_, err = f.Write(b)
+		if err != nil {
+			fmt.Printf("Error while writing segment %d of %s", s.SeqId, name)
+		}
 	}
 }
